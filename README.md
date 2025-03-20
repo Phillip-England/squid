@@ -9,7 +9,9 @@ bun add github:phillip-england/squid
 ## Quickstart
 If you already know how to use `Squid`, here you go:
 ```ts
-let result = await Squid.new("./app")
+import { Squid } from "squid"
+
+let result = await Squid.new("./app", process.cwd())
 if (result.isErr()) {
   console.error(result.unwrapErr())
 }
@@ -27,6 +29,7 @@ mkdir ./app/user
 mkdir ./app/user/:id
 touch ./app/+init.ts
 touch ./app/+route.ts
+touch ./app/about/+route.ts
 touch ./app/user/+route.ts
 touch ./app/user/+mw.ts
 touch ./app/user/:id/+route.ts
