@@ -1,4 +1,4 @@
-import { logger, type Xerus, HTTPContext } from "xerus/xerus";
+import { logger, type Xerus} from "xerus/xerus";
 
 
 export const init = async (app: Xerus) => {

@@ -3,7 +3,6 @@ import "fs/promises"
 import { type Result, Exit } from "bun-err"
 import { walkDir } from "./src/util"
 import { Xerus, type Middleware, HTTPContext } from "xerus/xerus"
-import { init } from "./app/+init"
 
 enum SquidFileType {
   INIT = 'INIT',
@@ -78,8 +77,7 @@ class Squid {
   private static async mountRoutes(app: Xerus, files: SquidFile[]) {
     await this.walkFilesOfType(files, SquidFileType.ROUTE, async (file: SquidFile) => {
       let module = await import(file.path)
-      console.log(module, file.path)
-      let mw = await this.importMiddlewareByPath(file.path, files)
+      let mw = await this.importMiddlewareByFile(file, files)
       if (module.get) {
         app.get(file.httpPath, module.get, ...mw)
       }
@@ -100,7 +98,7 @@ class Squid {
   private static async loadInit(app: Xerus, files: SquidFile[]) {
     await this.walkFilesOfType(files, SquidFileType.INIT, async (file: SquidFile) => {
       let module = await import(file.path)
-      await init(app)
+      await module.init(app)
     })
   }
   private static async mountStaticFiles(app: Xerus, dir: string) {
@@ -126,10 +124,10 @@ class Squid {
       return depthA - depthB
     })
   }
-  private static async importMiddlewareByPath(path: string, files: SquidFile[]) {
+  private static async importMiddlewareByFile(targetFile: SquidFile, files: SquidFile[]) {
     let mw: Middleware[] = []
     await this.walkFilesOfType(files, SquidFileType.MIDDLEWARE, async (file: SquidFile) => {
-      if (path.includes(file.httpPath)) {
+      if (targetFile.httpPath.startsWith(file.httpPath)) {
         let ts = await import(file.path)
         mw.push(...ts.mw)
       }
@@ -161,16 +159,3 @@ class Squid {
     return Exit.ok(this.orderFilesByDepth(files) as SquidFile[])
   }
 }
-
-//==================================
-// testing
-//==================================
-
-let result = await Squid.new("./app")
-if (result.isErr()) {
-  console.log(result.unwrapErr())
-}
-
-let app = result.unwrap() as Squid
-
-await app.listen()
