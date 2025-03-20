@@ -1,6 +1,11 @@
 # squid
 A file-based route for [Xerus](https://github.com/Phillip-England/xerus)
 
+## Installation
+```bash
+bun add github:phillip-england/squid
+```
+
 ## Quickstart
 If you already know how to use `Squid`, here you go:
 ```ts
