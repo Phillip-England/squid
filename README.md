@@ -1,5 +1,5 @@
 # squid
-A file-based route for [Xerus](https://github.com/Phillip-England/xerus)
+A file-based router for [Xerus](https://github.com/Phillip-England/xerus)
 
 ## Installation
 ```bash
