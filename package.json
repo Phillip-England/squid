@@ -1,0 +1,16 @@
+{
+  "name": "squid",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "bun-err": "github.com:phillip-england/bun-err",
+    "xerus": "github:phillip-england/xerus"
+  }
+}
