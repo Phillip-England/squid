@@ -55,7 +55,7 @@ class SquidFile {
 // Squid
 //==================================
 
-class Squid {
+export class Squid {
   files: SquidFile[]
   app: Xerus
   constructor(app: Xerus, files: SquidFile[]) {
