@@ -3,6 +3,7 @@ import "fs/promises"
 import { type Result, Exit } from "bun-err"
 import { walkDir } from "./src/util"
 import { Xerus, type Middleware, HTTPContext } from "xerus/xerus"
+import path, { relative } from "path"
 
 enum SquidFileType {
   INIT = 'INIT',
@@ -23,31 +24,31 @@ class SquidFile {
   depth: number
   extension: string
   httpPath: string
-  constructor(path: string, text: string, fileType: SquidFileType) {
-    this.path = './'+path
+  constructor(path: string, text: string, fileType: SquidFileType, httpPath: string) {
+    this.path = path
     this.text = text
     this.fileType = fileType
     this.pathParts = path.split('/')
     this.lastPathPart = this.pathParts[this.pathParts.length-1] || ''
     this.depth = this.pathParts.length
     this.extension = this.lastPathPart.split('.')[this.lastPathPart.split('.').length-1] || ''
-    if (this.depth == 2) {
-      this.httpPath = "/"
-    } else {
-      let pathPartsWithoutFirstAndLast = []
-      for (let i = 0; i < this.depth; i++) {
-        if (i == 0 || i == this.depth-1) {
-          continue
-        }
-        pathPartsWithoutFirstAndLast.push(this.pathParts[i])
-      }
-      this.httpPath = '/'+pathPartsWithoutFirstAndLast.join('/')
-    }
+    this.httpPath = httpPath
   }
-  static async new(path: string, fileType: SquidFileType): Promise<Result<SquidFile>> {
+  static async new(path: string, fileType: SquidFileType, root: string): Promise<Result<SquidFile>> {
     let file = await Bun.file(path)
     let text = await file.text()
-    return Exit.ok(new SquidFile(path, text, fileType))
+    let rootAltered = root.replace('./', '')
+    let index = path.indexOf(rootAltered)
+    let relativePath = path.slice(index, path.length)
+    let parts = relativePath.split('/')
+    parts.shift()
+    if (parts.length == 1) {
+      return Exit.ok(new SquidFile(path, text, fileType, '/'))
+    }
+    parts.pop()
+    let httpPath = '/'+parts.join('/')
+    return Exit.ok(new SquidFile(path, text, fileType, httpPath))
+    console.log(path, root)
   } 
 }
 
@@ -62,14 +63,15 @@ export class Squid {
     this.app = app
     this.files = files
   }
-  static async new(dir: string): Promise<Result<Squid>> {
-    let fileRes = await this.loadFiles(dir)
+  static async new(root: string, cwd: string): Promise<Result<Squid>> {
+    let absDir = path.resolve(cwd, root)
+    let fileRes = await this.loadFiles(absDir, root)
     if (fileRes.isErr()) {
       return Exit.err(fileRes.unwrapErr())
     }
     let files = fileRes.unwrap() as SquidFile[]
     let app = new Xerus()
-    await this.mountStaticFiles(app, dir)
+    await this.mountStaticFiles(app, absDir)
     await this.loadInit(app, files)
     await this.mountRoutes(app, files)
     return Exit.ok(new Squid(app, files))
@@ -134,15 +136,15 @@ export class Squid {
     })
     return mw
   }
-  private static async loadFiles(dir: string): Promise<Result<SquidFile[]>> {
+  private static async loadFiles(absDir: string, root: string): Promise<Result<SquidFile[]>> {
     let files: SquidFile[] = []
-    let dirRes = await walkDir(dir, async (isDir: boolean, path: string) => {
+    let dirRes = await walkDir(absDir, async (isDir: boolean, path: string) => {
       if (isDir) {
         return
       }
       let checkForFile = async (includes: string, fileType: SquidFileType, files: SquidFile[]) => {
         if (path.includes(includes)) {
-          let sqRes = await SquidFile.new(path, fileType)
+          let sqRes = await SquidFile.new(path, fileType, root)
           if (sqRes.isErr()) {
             return Exit.err(sqRes.unwrapErr())
           }
