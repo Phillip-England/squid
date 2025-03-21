@@ -1,7 +1,7 @@
 import { readdir } from "fs/promises";
 import path from "path";
 
-import { type Result, Exit } from "bun-err";
+import { type Result, exit } from "bun-err";
 
 export async function walkDir(
   dir: string,
@@ -16,8 +16,8 @@ export async function walkDir(
         await walkDir(fullPath, callback);
       }
     }
-    return Exit.ok(null)
+    return exit.ok(null)
   } catch (e: any) {
-    return Exit.err(e)
+    return exit.err(e)
   }
 }
