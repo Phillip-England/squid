@@ -11,12 +11,10 @@ If you already know how to use `Squid`, here you go:
 ```ts
 import { Squid } from "squid"
 
-let result = await Squid.new("./app", process.cwd())
-if (result.isErr()) {
-  console.error(result.unwrapErr())
+let [app, err] = await Squid.new("./app", process.cwd()) as [Squid, null]
+if (err) {
+  console.error(err)
 }
-
-let app = result.unwrap() as Squid
 
 await app.listen()
 ```
