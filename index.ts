@@ -105,7 +105,7 @@ export class Squid {
   }
   private static async mountStaticFiles(app: Xerus, dir: string) {
     app.get("/static/*", async (c: HTTPContext) => {
-      return await c.file("./" + dir + c.path);
+      return await c.file(dir + c.path);
     });
   }
   async listen(port: number = 8080) {
