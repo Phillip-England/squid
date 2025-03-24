@@ -3,12 +3,13 @@ import "fs/promises"
 import { type Result, exit } from "bun-err"
 import { walkDir } from "./src/util"
 import { Xerus, type Middleware, HTTPContext } from "xerus/xerus"
-import path, { relative } from "path"
+import path from "path"
 
 enum SquidFileType {
   INIT = 'INIT',
   ROUTE = 'ROUTE',
-  MIDDLEWARE = 'MIDDLEWARE'
+  MIDDLEWARE = 'MIDDLEWARE',
+  CONNECT = 'CONNECT'
 }
 
 //==================================
@@ -48,7 +49,6 @@ class SquidFile {
     parts.pop()
     let httpPath = '/'+parts.join('/')
     return exit.ok(new SquidFile(path, text, fileType, httpPath))
-    console.log(path, root)
   } 
 }
 
@@ -63,18 +63,22 @@ export class Squid {
     this.app = app
     this.files = files
   }
-  static async new(root: string, cwd: string): Promise<[Squid | null, Error | null]> {
-    let absDir = path.resolve(cwd, root)
-    let fileRes = await this.loadFiles(absDir, root)
-    if (fileRes.isErr()) {
-      return [null, fileRes.unwrapErr()]
+  static async new(root: string, cwd: string): Promise<Xerus> {
+    try {
+      let absDir = path.resolve(cwd, root)
+      let fileRes = await this.loadFiles(absDir, root)
+      if (fileRes.isErr()) {
+        throw fileRes.unwrapErr()
+      }
+      let files = fileRes.unwrap() as SquidFile[]
+      let app = new Xerus()
+      await this.mountStaticFiles(app, absDir)
+      await this.loadInit(app, files)
+      await this.mountRoutes(app, files)
+      return app
+    } catch (err: any) {
+      throw err as Error
     }
-    let files = fileRes.unwrap() as SquidFile[]
-    let app = new Xerus()
-    await this.mountStaticFiles(app, absDir)
-    await this.loadInit(app, files)
-    await this.mountRoutes(app, files)
-    return [new Squid(app, files), null]
   }
   private static async mountRoutes(app: Xerus, files: SquidFile[]) {
     await this.walkFilesOfType(files, SquidFileType.ROUTE, async (file: SquidFile) => {
@@ -107,9 +111,6 @@ export class Squid {
     app.get("/static/*", async (c: HTTPContext) => {
       return await c.file(dir + c.path);
     });
-  }
-  async listen(port: number = 8080) {
-    this.app.listen(port)
   }
   private static async walkFilesOfType(files: SquidFile[], fileType: SquidFileType, callback: (file: SquidFile) => void) {
     for (let i = 0; i < files.length; i++) {
@@ -158,6 +159,7 @@ export class Squid {
       await checkForFile('+route.ts', SquidFileType.ROUTE, files)
       await checkForFile('+mw.ts', SquidFileType.MIDDLEWARE, files)
       await checkForFile('+init.ts', SquidFileType.INIT, files)
+      await checkForFile('+connect.ts', SquidFileType.INIT, files)
     })
     if (dirRes.isErr()) {
       return exit.err(dirRes.unwrapErr())
